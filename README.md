@@ -58,7 +58,7 @@ npm run youtube:to:mp3
 
 This will download the example video to:
 ```
-Islamic-Lectures/Life Changing Bayan - Phir Nek Nahi ho Tum - Dr. Israr Ahmed.mp3
+Lectures/Ahmed.mp3
 ```
 
 ## Function Parameters
