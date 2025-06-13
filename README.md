@@ -35,9 +35,9 @@ After researching the best npm packages for YouTube to MP3 conversion, I selecte
 ```typescript
 import { convertYouTubeVideoToMp3 } from './src/utils/convert-youtube-video-to-mp3';
 
-const videoId = 'Zjp3zIZwloE';
-const playlistName = 'Islamic-Lectures';
-const fileName = 'Life Changing Bayan ┇ Phir Nek Nahi ho Tum - Dr. Israr Ahmed';
+const videoId = 'xyz';
+const playlistName = 'Lectures';
+const fileName = 'Ahmed';
 
 convertYouTubeVideoToMp3(videoId, playlistName, fileName)
   .then(outputPath => {
