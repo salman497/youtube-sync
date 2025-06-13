@@ -70,7 +70,16 @@ export async function convertYouTubeVideoToMp3(
           console.log('🔄 FFmpeg started with command:', commandLine);
         })
         .on('progress', (progress) => {
-          console.log(`⏳ Processing: ${progress.percent ? Math.round(progress.percent) : 0}% done`);
+          // FFmpeg progress can include: frames, currentFps, currentKbps, targetSize, timemark, percent
+          if (progress.percent && progress.percent > 0) {
+            console.log(`⏳ Processing: ${Math.round(progress.percent)}% done`);
+          } else if (progress.timemark) {
+            console.log(`⏳ Processing: ${progress.timemark} processed`);
+          } else if (progress.targetSize) {
+            console.log(`⏳ Processing: ${Math.round(progress.targetSize)}KB processed`);
+          } else {
+            console.log(`⏳ Processing audio conversion...`);
+          }
         })
         .on('end', () => {
           console.log(`✅ Successfully downloaded: ${outputPath}`);
