@@ -35,7 +35,7 @@ export async function convertYouTubeVideoToMp3(
     try {
       // Create the directory structure: <root>/<playlistname>/
       const rootDir = process.cwd();
-      const playlistDir = path.join(rootDir, playlistName);
+      const playlistDir = path.join(rootDir, 'playlists', playlistName);
       
       // Ensure the playlist directory exists
       await fs.ensureDir(playlistDir);

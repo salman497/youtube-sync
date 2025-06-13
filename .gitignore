@@ -114,9 +114,5 @@ Thumbs.db
 *.swo
 *~
 
-# Downloaded MP3 files (playlist directories that will be created)
-*-*/
-Islamic-Lectures/
-
 # But ensure we don't ignore important project directories
 !src/ 

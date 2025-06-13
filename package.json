@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "youtube:to:mp3": "ts-node src/test-convert.ts",
+    "youtube:to:mp3": "ts-node src/utils/convert-youtube-video-to-mp3.test.ts",
     "start": "node dist/index.js"
   },
   "keywords": [
