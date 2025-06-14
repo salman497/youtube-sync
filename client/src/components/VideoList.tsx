@@ -21,6 +21,18 @@ const VideoList: React.FC<VideoListProps> = ({
   const [vlcIp, setVlcIp] = useState('http://192.168.1.105');
   const [vlcLoading, setVlcLoading] = useState(false);
   const [vlcMessage, setVlcMessage] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter videos based on search term
+  const filteredVideos = playlist.playlistVideos.filter(video => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const titleMatch = video.videoTitle.toLowerCase().includes(searchLower);
+    const descMatch = video.videoDesc?.toLowerCase().includes(searchLower) || false;
+    
+    return titleMatch || descMatch;
+  });
 
   const handleVideoToggle = (videoId: string) => {
     const updatedVideos = playlist.playlistVideos.map(video => 
@@ -36,17 +48,28 @@ const VideoList: React.FC<VideoListProps> = ({
     
     onPlaylistUpdate(updatedPlaylist);
     
-    // Update select all state
-    const allSelected = updatedVideos.every(v => v.selected);
+    // Update select all state based on filtered videos
+    const filteredUpdatedVideos = updatedVideos.filter(video => {
+      if (!searchTerm.trim()) return true;
+      const searchLower = searchTerm.toLowerCase();
+      const titleMatch = video.videoTitle.toLowerCase().includes(searchLower);
+      const descMatch = video.videoDesc?.toLowerCase().includes(searchLower) || false;
+      return titleMatch || descMatch;
+    });
+    const allSelected = filteredUpdatedVideos.length > 0 && filteredUpdatedVideos.every(v => v.selected);
     setSelectAll(allSelected);
   };
 
   const handleSelectAll = () => {
     const newSelectAll = !selectAll;
-    const updatedVideos = playlist.playlistVideos.map(video => ({
-      ...video,
-      selected: newSelectAll,
-    }));
+    const updatedVideos = playlist.playlistVideos.map(video => {
+      // Only toggle selection for filtered videos
+      const isInFilteredResults = filteredVideos.some(fv => fv.videoId === video.videoId);
+      if (isInFilteredResults) {
+        return { ...video, selected: newSelectAll };
+      }
+      return video;
+    });
     
     const updatedPlaylist = {
       ...playlist,
@@ -96,15 +119,20 @@ const VideoList: React.FC<VideoListProps> = ({
   const selectedCount = playlist.playlistVideos.filter(v => v.selected).length;
   const syncedCount = playlist.playlistVideos.filter(v => v.sync).length;
   const selectedSyncedCount = playlist.playlistVideos.filter(v => v.selected && v.sync).length;
+  const filteredSelectedCount = filteredVideos.filter(v => v.selected).length;
   const canSync = selectedCount > 0 && !loading && isAuthorized;
   const canUploadVlc = selectedSyncedCount > 0 && !vlcLoading && !loading;
 
-  // Update selectAll state when playlist changes
+  // Update selectAll state when playlist or search changes
   React.useEffect(() => {
-    const allSelected = playlist.playlistVideos.length > 0 && 
-                       playlist.playlistVideos.every(v => v.selected);
+    const allSelected = filteredVideos.length > 0 && 
+                       filteredVideos.every(v => v.selected);
     setSelectAll(allSelected);
-  }, [playlist.playlistVideos]);
+  }, [filteredVideos]);
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
 
   return (
     <div className="card">
@@ -122,20 +150,66 @@ const VideoList: React.FC<VideoListProps> = ({
         </p>
       )}
 
+      {/* Search Section */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ minWidth: '60px', fontSize: '14px' }}>🔍 Search:</span>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search videos by title or description..."
+            disabled={loading || vlcLoading}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}
+          />
+          {searchTerm && (
+            <button
+              onClick={clearSearch}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '16px',
+                padding: '4px 8px',
+                color: '#666'
+              }}
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {searchTerm && (
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            Showing {filteredVideos.length} of {playlist.playlistVideos.length} videos
+          </div>
+        )}
+      </div>
+
       <div className="toolbar">
         <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
             checked={selectAll}
             onChange={handleSelectAll}
-            disabled={loading || vlcLoading}
+            disabled={loading || vlcLoading || filteredVideos.length === 0}
           />
-          <span>Select All ({playlist.playlistVideos.length} videos)</span>
+          <span>
+            Select All ({filteredVideos.length} {searchTerm ? 'filtered' : ''} videos)
+            {searchTerm && filteredSelectedCount > 0 && ` - ${filteredSelectedCount} selected`}
+          </span>
         </label>
 
         <button
           className="btn btn-success"
           onClick={handleSync}
+          disabled={!canSync}
           title={!isAuthorized ? 'Connect to YouTube to sync videos' : ''}
         >
           {loading ? '🔄 Syncing...' : `🎶 Sync Selected (${selectedCount})`}
@@ -229,14 +303,17 @@ const VideoList: React.FC<VideoListProps> = ({
 
       {playlist.playlistVideos.length === 0 ? (
         <p>No videos found in this playlist.</p>
+      ) : filteredVideos.length === 0 && searchTerm ? (
+        <p>No videos match your search "{searchTerm}". <button onClick={clearSearch} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}>Clear search</button></p>
       ) : (
         <div className="video-list">
-          {playlist.playlistVideos.map((video) => (
+          {filteredVideos.map((video) => (
             <VideoItem
               key={video.videoId}
               video={video}
               onToggle={() => handleVideoToggle(video.videoId)}
               disabled={loading || vlcLoading}
+              searchTerm={searchTerm}
             />
           ))}
         </div>
@@ -249,9 +326,28 @@ interface VideoItemProps {
   video: PlaylistVideo;
   onToggle: () => void;
   disabled: boolean;
+  searchTerm: string;
 }
 
-const VideoItem: React.FC<VideoItemProps> = ({ video, onToggle, disabled }) => {
+const VideoItem: React.FC<VideoItemProps> = ({ video, onToggle, disabled, searchTerm }) => {
+  // Highlight search terms in title and description
+  const highlightText = (text: string, search: string) => {
+    if (!search.trim()) return text;
+    
+    const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <span key={index} style={{ backgroundColor: '#ffeb3b', fontWeight: 'bold' }}>
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
   return (
     <div className="video-item">
       <div className="video-checkbox">
@@ -271,11 +367,13 @@ const VideoItem: React.FC<VideoItemProps> = ({ video, onToggle, disabled }) => {
             rel="noopener noreferrer"
             style={{ color: 'inherit', textDecoration: 'none' }}
           >
-            {video.videoTitle}
+            {highlightText(video.videoTitle, searchTerm)}
           </a>
         </h4>
         {video.videoDesc && (
-          <p className="video-description">{video.videoDesc}</p>
+          <p className="video-description">
+            {highlightText(video.videoDesc, searchTerm)}
+          </p>
         )}
       </div>
       
