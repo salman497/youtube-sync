@@ -1,4 +1,4 @@
-import { Playlist, PlaylistData, SyncResponse } from '../types/playlist';
+import { Playlist, PlaylistData, SyncResponse, VlcUploadRequest, VlcUploadResponse } from '../types/playlist';
 
 const API_BASE_URL = '/api';
 
@@ -82,6 +82,15 @@ class ApiService {
   async syncPlaylist(playlistId: string): Promise<SyncResponse> {
     return this.request(`/playlists/${playlistId}/sync`, {
       method: 'POST',
+    });
+  }
+
+  // VLC Mobile Upload
+  async uploadToVlc(playlistId: string, vlcIp: string): Promise<VlcUploadResponse> {
+    const requestData: Pick<VlcUploadRequest, 'vlcIp'> = { vlcIp };
+    return this.request(`/playlists/${playlistId}/upload-vlc`, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
     });
   }
 }

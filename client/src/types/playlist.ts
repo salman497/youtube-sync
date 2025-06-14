@@ -12,6 +12,7 @@ export interface Playlist {
   playlistId: string;
   playlistUrl?: string;
   playlistVideos: PlaylistVideo[];
+  syncWithVlc?: boolean;
 }
 
 export type PlaylistData = Playlist[];
@@ -30,4 +31,24 @@ export interface SyncResponse {
   synced: number;
   total: number;
   results: SyncResult[];
+}
+
+export interface VlcUploadResult {
+  videoId: string;
+  title: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface VlcUploadResponse {
+  success: boolean;
+  message: string;
+  uploaded: number;
+  total: number;
+  results: VlcUploadResult[];
+}
+
+export interface VlcUploadRequest {
+  playlistId: string;
+  vlcIp: string;
 } 

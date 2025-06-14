@@ -5,7 +5,7 @@ interface AuthSectionProps {
   onAuthSuccess: () => void;
 }
 
-const AuthSection: React.FC<AuthSectionProps> = ({ onAuthSuccess }) => {
+const AuthSection: React.FC<AuthSectionProps> = ({ onAuthSuccess: _ }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

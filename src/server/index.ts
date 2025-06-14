@@ -9,9 +9,10 @@ import cors from 'cors';
 import session from 'express-session';
 import * as fs from 'fs-extra';
 import { YouTubeService } from '../services/youtube';
-import { PlaylistData, Playlist } from '../types/playlist';
+import { PlaylistData, Playlist, VlcUploadRequest, VlcUploadResponse } from '../types/playlist';
 import { convertYouTubeVideoToMp3 } from '../utils/convert-youtube-video-to-mp3';
 import { authRouter } from './routes/auth';
+import { VlcService } from '../services/vlc';
 
 const app = express();
 const PORT = process.env.API_PORT;
@@ -184,6 +185,107 @@ app.post('/api/playlists/:playlistId/sync', async (req, res) => {
   } catch (error) {
     console.error('Error syncing playlist:', error);
     res.status(500).json({ error: 'Failed to sync playlist' });
+  }
+});
+
+// Upload selected videos to VLC Mobile
+app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
+  try {
+    const { playlistId } = req.params;
+    const { vlcIp } = req.body as Pick<VlcUploadRequest, 'vlcIp'>;
+    
+    if (!vlcIp) {
+      return res.status(400).json({ error: 'VLC IP address is required' });
+    }
+    
+    if (!(await fs.pathExists(PLAYLIST_FILE))) {
+      return res.status(404).json({ error: 'Playlist file not found' });
+    }
+    
+    const playlists: PlaylistData = await fs.readJson(PLAYLIST_FILE);
+    const playlist = playlists.find(p => p.playlistId === playlistId);
+    
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+    
+    // Only upload selected videos that have been synced (MP3 exists)
+    const selectedVideos = playlist.playlistVideos.filter(v => v.selected && v.sync);
+    
+    if (selectedVideos.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: 'No synced videos selected for VLC upload', 
+        uploaded: 0,
+        total: 0,
+        results: []
+      });
+    }
+    
+    console.log(`📱 Starting VLC upload of ${selectedVideos.length} videos from playlist: ${playlist.playlistName}`);
+    
+    // Initialize VLC service
+    const vlcService = new VlcService(vlcIp);
+    
+    // Test VLC connection first
+    const isConnected = await vlcService.testConnection();
+    if (!isConnected) {
+      return res.status(400).json({ error: `Cannot connect to VLC Mobile at ${vlcIp}` });
+    }
+    
+    // Try to create playlist in VLC (if supported)
+    await vlcService.createPlaylist(playlist.playlistName);
+    
+    // Prepare files for upload
+    const files = [];
+    for (const video of selectedVideos) {
+      const sanitizedTitle = video.videoTitle.replace(/[<>:"/\\|?*]/g, '_');
+      const fileName = `${sanitizedTitle}.mp3`;
+      const filePath = path.join(process.cwd(), 'playlists', playlist.playlistName, fileName);
+      
+      if (await fs.pathExists(filePath)) {
+        files.push({
+          filePath,
+          fileName,
+          videoId: video.videoId,
+          title: video.videoTitle
+        });
+      } else {
+        console.warn(`⚠️ MP3 file not found for ${video.videoTitle}, skipping upload`);
+      }
+    }
+    
+    if (files.length === 0) {
+      return res.json({
+        success: false,
+        message: 'No MP3 files found for selected videos',
+        uploaded: 0,
+        total: selectedVideos.length,
+        results: []
+      });
+    }
+    
+    // Upload files to VLC
+    const results = await vlcService.uploadMultipleFiles(files);
+    const uploadedCount = results.filter(r => r.success).length;
+    
+    // Mark playlist as synced with VLC
+    playlist.syncWithVlc = true;
+    await fs.writeJson(PLAYLIST_FILE, playlists, { spaces: 2 });
+    
+    const response: VlcUploadResponse = {
+      success: true,
+      message: `Uploaded ${uploadedCount} out of ${files.length} files to VLC Mobile`,
+      uploaded: uploadedCount,
+      total: files.length,
+      results
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('Error uploading to VLC:', error);
+    res.status(500).json({ error: 'Failed to upload to VLC Mobile' });
   }
 });
 
