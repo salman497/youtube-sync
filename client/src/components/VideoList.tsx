@@ -209,7 +209,7 @@ const VideoList: React.FC<VideoListProps> = ({
         <button
           className="btn btn-success"
           onClick={handleSync}
-          disabled={!canSync}
+          // disabled={!canSync}
           title={!isAuthorized ? 'Connect to YouTube to sync videos' : ''}
         >
           {loading ? '🔄 Syncing...' : `🎶 Sync Selected (${selectedCount})`}

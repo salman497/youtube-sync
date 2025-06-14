@@ -263,8 +263,8 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
       });
     }
     
-    // Upload files to VLC
-    const results = await vlcService.uploadMultipleFiles(files);
+    // Upload files to VLC with playlist folder structure
+    const results = await vlcService.uploadMultipleFiles(files, playlist.playlistName);
     const uploadedCount = results.filter(r => r.success).length;
     
     // Mark playlist as synced with VLC

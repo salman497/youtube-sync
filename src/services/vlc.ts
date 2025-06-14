@@ -14,7 +14,7 @@ export class VlcService {
   /**
    * Upload a single MP3 file to VLC Mobile
    */
-  async uploadFile(filePath: string, fileName: string): Promise<boolean> {
+  async uploadFile(filePath: string, fileName: string, playlistName?: string): Promise<boolean> {
     try {
       if (!(await fs.pathExists(filePath))) {
         throw new Error(`File not found: ${filePath}`);
@@ -22,7 +22,10 @@ export class VlcService {
 
       const form = new FormData();
       const fileStream = fs.createReadStream(filePath);
-      form.append('files[]', fileStream, fileName);
+      
+      // Include playlist name as folder in the filename if provided
+      const fileNameWithFolder = playlistName ? `${playlistName}/${fileName}` : fileName;
+      form.append('files[]', fileStream, fileNameWithFolder);
 
       const response = await axios.post(`${this.vlcIp}/upload.json`, form, {
         headers: {
@@ -65,14 +68,19 @@ export class VlcService {
    * Upload multiple MP3 files to VLC Mobile
    */
   async uploadMultipleFiles(
-    files: Array<{ filePath: string; fileName: string; videoId: string; title: string }>
+    files: Array<{ filePath: string; fileName: string; videoId: string; title: string }>,
+    playlistName?: string
   ): Promise<VlcUploadResult[]> {
     const results: VlcUploadResult[] = [];
 
     for (const file of files) {
       try {
-        console.log(`🔄 Uploading to VLC: ${file.title}`);
-        await this.uploadFile(file.filePath, file.fileName);
+        const logMessage = playlistName 
+          ? `🔄 Uploading to VLC folder "${playlistName}": ${file.title}`
+          : `🔄 Uploading to VLC: ${file.title}`;
+        console.log(logMessage);
+        
+        await this.uploadFile(file.filePath, file.fileName, playlistName);
         
         results.push({
           videoId: file.videoId,
@@ -80,7 +88,10 @@ export class VlcService {
           success: true
         });
         
-        console.log(`✅ Successfully uploaded to VLC: ${file.title}`);
+        const successMessage = playlistName 
+          ? `✅ Successfully uploaded to VLC folder "${playlistName}": ${file.title}`
+          : `✅ Successfully uploaded to VLC: ${file.title}`;
+        console.log(successMessage);
       } catch (error) {
         console.error(`❌ Failed to upload to VLC ${file.title}:`, error);
         results.push({
