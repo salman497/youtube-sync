@@ -13,6 +13,7 @@ class ApiService {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      credentials: 'include', // Include cookies for session
       ...options,
     };
 
@@ -39,18 +40,17 @@ class ApiService {
   }
 
   // YouTube Authentication
-  async getAuthStatus(): Promise<{ authorized: boolean }> {
-    return this.request('/youtube/auth-status');
+  async getAuthStatus(): Promise<{ loggedIn: boolean }> {
+    return this.request('/auth/status');
   }
 
-  async getAuthUrl(): Promise<{ authUrl: string }> {
-    return this.request('/youtube/auth-url');
+  getAuthUrl(): string {
+    return '/auth/youtube';
   }
 
-  async exchangeAuthCode(code: string): Promise<{ success: boolean; message: string }> {
-    return this.request('/youtube/auth-callback', {
+  async logout(): Promise<{ message: string }> {
+    return this.request('/auth/logout', {
       method: 'POST',
-      body: JSON.stringify({ code }),
     });
   }
 

@@ -23,10 +23,10 @@ function App() {
       
       // Check if user is authorized
       const authStatus = await apiService.getAuthStatus();
-      setIsAuthorized(authStatus.authorized);
+      setIsAuthorized(authStatus.loggedIn);
       
       // If authorized, load existing playlists
-      if (authStatus.authorized) {
+      if (authStatus.loggedIn) {
         const existingPlaylists = await apiService.getPlaylists();
         setPlaylists(existingPlaylists);
       }
@@ -41,6 +41,18 @@ function App() {
     setIsAuthorized(true);
     setError(null);
     setSuccess('Successfully connected to YouTube!');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiService.logout();
+      setIsAuthorized(false);
+      setPlaylists([]);
+      setSelectedPlaylist(null);
+      setSuccess('Successfully logged out');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to logout');
+    }
   };
 
   const handleLoadPlaylists = async () => {
@@ -160,8 +172,19 @@ function App() {
         ) : (
           <>
             <div className="card">
-              <h2>📚 Playlist Management</h2>
-              <p>Load your YouTube playlists and sync selected videos to MP3.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h2>📚 Playlist Management</h2>
+                  <p>Load your YouTube playlists and sync selected videos to MP3.</p>
+                </div>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={handleLogout}
+                  style={{ height: 'fit-content' }}
+                >
+                  🚪 Logout
+                </button>
+              </div>
               
               <button 
                 className="btn btn-primary" 

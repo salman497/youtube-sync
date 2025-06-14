@@ -6,71 +6,51 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import express from 'express';
 import cors from 'cors';
+import session from 'express-session';
 import * as fs from 'fs-extra';
 import { YouTubeService } from '../services/youtube';
 import { PlaylistData, Playlist } from '../types/playlist';
 import { convertYouTubeVideoToMp3 } from '../utils/convert-youtube-video-to-mp3';
+import { authRouter } from './routes/auth';
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.API_PORT;
 const PLAYLIST_FILE = path.join(process.cwd(), 'playlist.json');
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.WEB_HOST || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
 
-// Initialize YouTube service
-const youtubeService = new YouTubeService();
+// Use auth routes
+app.use('/auth', authRouter);
 
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'YouTube Sync API is running' });
 });
 
-// Check if user is authorized with YouTube
-app.get('/api/youtube/auth-status', (req, res) => {
-  try {
-    const isAuthorized = youtubeService.isAuthorized();
-    res.json({ authorized: isAuthorized });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to check authorization status' });
-  }
-});
-
-// Get YouTube authorization URL
-app.get('/api/youtube/auth-url', async (req, res) => {
-  try {
-    const authUrl = await youtubeService.authorize();
-    res.json({ authUrl });
-  } catch (error) {
-    console.error('Error getting auth URL:', error);
-    res.status(500).json({ error: 'Failed to get authorization URL' });
-  }
-});
-
-// Exchange authorization code for access token
-app.post('/api/youtube/auth-callback', async (req, res) => {
-  try {
-    const { code } = req.body;
-    if (!code) {
-      return res.status(400).json({ error: 'Authorization code is required' });
-    }
-    
-    await youtubeService.getAccessToken(code);
-    res.json({ success: true, message: 'Authorization successful' });
-  } catch (error) {
-    console.error('Error exchanging code for token:', error);
-    res.status(500).json({ error: 'Failed to exchange authorization code' });
-  }
-});
-
 // Load playlists from YouTube and save to playlist.json
 app.post('/api/playlists/load', async (req, res) => {
   try {
-    if (!youtubeService.isAuthorized()) {
+    const tokens = (req.session as any).tokens;
+    if (!tokens) {
       return res.status(401).json({ error: 'Not authorized with YouTube' });
     }
 
+    const youtubeService = new YouTubeService(tokens);
     console.log('🎵 Loading playlists from YouTube...');
     const playlists = await youtubeService.getUserPlaylists();
     
