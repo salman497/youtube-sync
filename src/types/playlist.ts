@@ -5,6 +5,7 @@ export interface PlaylistVideo {
   videoTitle: string;
   videoDesc?: string; // Optional as specified
   sync: boolean; // Initially false
+  mp3FilePath?: string; // Path to the MP3 file when synced
 }
 
 export interface Playlist {

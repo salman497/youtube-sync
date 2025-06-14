@@ -148,8 +148,9 @@ app.post('/api/playlists/:playlistId/sync', async (req, res) => {
           video.videoTitle
         );
         
-        // Mark as synced
+        // Mark as synced and store the MP3 file path
         video.sync = true;
+        video.mp3FilePath = outputPath;
         syncedCount++;
         
         results.push({
@@ -239,19 +240,16 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
     // Prepare files for upload
     const files = [];
     for (const video of selectedVideos) {
-      const sanitizedTitle = video.videoTitle.replace(/[<>:"/\\|?*]/g, '_');
-      const fileName = `${sanitizedTitle}.mp3`;
-      const filePath = path.join(process.cwd(), 'playlists', playlist.playlistName, fileName);
-      
-      if (await fs.pathExists(filePath)) {
+      if (video.mp3FilePath && await fs.pathExists(video.mp3FilePath)) {
+        const fileName = path.basename(video.mp3FilePath);
         files.push({
-          filePath,
+          filePath: video.mp3FilePath,
           fileName,
           videoId: video.videoId,
           title: video.videoTitle
         });
       } else {
-        console.warn(`⚠️ MP3 file not found for ${video.videoTitle}, skipping upload`);
+        console.warn(`⚠️ MP3 file not found for ${video.videoTitle} (path: ${video.mp3FilePath}), skipping upload`);
       }
     }
     
