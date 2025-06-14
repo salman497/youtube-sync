@@ -15,7 +15,7 @@ import { authRouter } from './routes/auth';
 
 const app = express();
 const PORT = process.env.API_PORT;
-const PLAYLIST_FILE = path.join(process.cwd(), 'playlist.json');
+const PLAYLIST_FILE = path.join(process.cwd(), 'playlists', 'playlist.json');
 
 // Middleware
 app.use(cors({
