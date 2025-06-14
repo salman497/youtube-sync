@@ -35,7 +35,7 @@ app.use(session({
 }));
 
 // Use auth routes
-app.use('/auth', authRouter);
+app.use('/api/auth', authRouter);
 
 // Routes
 app.get('/api/health', (req, res) => {

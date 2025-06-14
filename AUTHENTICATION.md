@@ -13,15 +13,15 @@ This application uses session-based OAuth2 authentication with YouTube API.
 ## Authentication Flow
 
 ```
-Client -> GET /auth/youtube -> YouTube OAuth -> GET /auth/youtube/callback -> Redirect to frontend
+Client -> GET /api/auth/youtube -> YouTube OAuth -> GET /api/auth/youtube/callback -> Redirect to frontend
 ```
 
 ## API Endpoints
 
-- `GET /auth/youtube` - Redirects to YouTube OAuth consent screen
-- `GET /auth/youtube/callback` - Handles OAuth callback and stores tokens in session
-- `GET /auth/status` - Returns `{loggedIn: boolean}` based on session state
-- `POST /auth/logout` - Destroys session and logs out user
+- `GET /api/auth/youtube` - Redirects to YouTube OAuth consent screen
+- `GET /api/auth/youtube/callback` - Handles OAuth callback and stores tokens in session
+- `GET /api/auth/status` - Returns `{loggedIn: boolean}` based on session state
+- `POST /api/auth/logout` - Destroys session and logs out user
 
 ## Environment Variables
 

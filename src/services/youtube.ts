@@ -7,7 +7,7 @@ dotenv.config();
 
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID;
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET;
-const REDIRECT_URI = `${process.env.API_HOST}/auth/youtube/callback`;
+const REDIRECT_URI = `${process.env.API_HOST}/api/auth/youtube/callback`;
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   throw new Error('YouTube client ID and secret are required.');

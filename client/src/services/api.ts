@@ -45,7 +45,7 @@ class ApiService {
   }
 
   getAuthUrl(): string {
-    return '/auth/youtube';
+    return '/api/auth/youtube';
   }
 
   async logout(): Promise<{ message: string }> {
