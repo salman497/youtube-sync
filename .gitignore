@@ -114,5 +114,10 @@ Thumbs.db
 *.swo
 *~
 
+# YouTube Sync specific files
+youtube-credentials.json
+youtube-token.json
+playlist.json
+
 # But ensure we don't ignore important project directories
 !src/ 
