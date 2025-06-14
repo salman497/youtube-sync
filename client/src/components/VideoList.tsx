@@ -6,6 +6,7 @@ interface VideoListProps {
   onPlaylistUpdate: (playlist: Playlist) => void;
   onSync: (playlistId: string) => void;
   loading: boolean;
+  isAuthorized: boolean;
 }
 
 const VideoList: React.FC<VideoListProps> = ({
@@ -13,6 +14,7 @@ const VideoList: React.FC<VideoListProps> = ({
   onPlaylistUpdate,
   onSync,
   loading,
+  isAuthorized,
 }) => {
   const [selectAll, setSelectAll] = useState(false);
 
@@ -57,7 +59,7 @@ const VideoList: React.FC<VideoListProps> = ({
 
   const selectedCount = playlist.playlistVideos.filter(v => v.selected).length;
   const syncedCount = playlist.playlistVideos.filter(v => v.sync).length;
-  const canSync = selectedCount > 0 && !loading;
+  const canSync = selectedCount > 0 && !loading && isAuthorized;
 
   // Update selectAll state when playlist changes
   React.useEffect(() => {
@@ -97,6 +99,7 @@ const VideoList: React.FC<VideoListProps> = ({
           className="btn btn-success"
           onClick={handleSync}
           disabled={!canSync}
+          title={!isAuthorized ? 'Connect to YouTube to sync videos' : ''}
         >
           {loading ? '🔄 Syncing...' : `🎶 Sync Selected (${selectedCount})`}
         </button>

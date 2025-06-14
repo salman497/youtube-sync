@@ -25,11 +25,9 @@ function App() {
       const authStatus = await apiService.getAuthStatus();
       setIsAuthorized(authStatus.loggedIn);
       
-      // If authorized, load existing playlists
-      if (authStatus.loggedIn) {
-        const existingPlaylists = await apiService.getPlaylists();
-        setPlaylists(existingPlaylists);
-      }
+      // Load existing playlists regardless of auth status (from local playlist.json)
+      const existingPlaylists = await apiService.getPlaylists();
+      setPlaylists(existingPlaylists);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initialize app');
     } finally {
@@ -167,29 +165,41 @@ function App() {
           </div>
         )}
 
-        {!isAuthorized ? (
+        {!isAuthorized && playlists.length === 0 ? (
           <AuthSection onAuthSuccess={handleAuthSuccess} />
         ) : (
           <>
+            {!isAuthorized && (
+              <div className="card" style={{ marginBottom: '20px', backgroundColor: '#fff3cd', borderColor: '#ffeaa7' }}>
+                <p style={{ margin: '0 0 12px 0', color: '#856404' }}>
+                  ℹ️ You're viewing offline playlist data. Connect to YouTube to load fresh data or sync videos.
+                </p>
+                <AuthSection onAuthSuccess={handleAuthSuccess} />
+              </div>
+            )}
+            
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
                   <h2>📚 Playlist Management</h2>
                   <p>Load your YouTube playlists and sync selected videos to MP3.</p>
                 </div>
-                <button 
-                  className="btn btn-secondary" 
-                  onClick={handleLogout}
-                  style={{ height: 'fit-content' }}
-                >
-                  🚪 Logout
-                </button>
+                {isAuthorized && (
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={handleLogout}
+                    style={{ height: 'fit-content' }}
+                  >
+                    🚪 Logout
+                  </button>
+                )}
               </div>
               
               <button 
                 className="btn btn-primary" 
                 onClick={handleLoadPlaylists}
-                disabled={loading}
+                disabled={loading || !isAuthorized}
+                title={!isAuthorized ? 'Connect to YouTube first to load fresh playlist data' : ''}
               >
                 {loading ? 'Loading...' : '🔄 Load My Playlist Data'}
               </button>
@@ -209,6 +219,7 @@ function App() {
                 onPlaylistUpdate={handlePlaylistUpdate}
                 onSync={handleSync}
                 loading={loading}
+                isAuthorized={isAuthorized}
               />
             )}
           </>
