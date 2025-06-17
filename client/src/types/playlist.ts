@@ -4,7 +4,7 @@ export interface PlaylistVideo {
   videoUrl: string;
   videoTitle: string;
   videoDesc?: string;
-  sync: boolean;
+  convertedToMP3: boolean;
 }
 
 export interface Playlist {

@@ -98,9 +98,9 @@ function App() {
       const response = await apiService.syncPlaylist(playlistId);
       
       if (response.success) {
-        setSuccess(`${response.message}. Successfully synced ${response.synced} videos.`);
+        setSuccess(`${response.message}. Successfully converted ${response.synced} videos.`);
         
-        // Refresh playlists to get updated sync status
+        // Refresh playlists to get updated conversion status
         const updatedPlaylists = await apiService.getPlaylists();
         setPlaylists(updatedPlaylists);
         
@@ -110,10 +110,10 @@ function App() {
           setSelectedPlaylist(updatedSelected);
         }
       } else {
-        setError('Sync failed');
+        setError('Conversion failed');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync playlist');
+      setError(err instanceof Error ? err.message : 'Failed to convert playlist');
     } finally {
       setLoading(false);
     }
@@ -172,7 +172,7 @@ function App() {
             {!isAuthorized && (
               <div className="card" style={{ marginBottom: '20px', backgroundColor: '#fff3cd', borderColor: '#ffeaa7' }}>
                 <p style={{ margin: '0 0 12px 0', color: '#856404' }}>
-                  ℹ️ You're viewing offline playlist data. Connect to YouTube to load fresh data or sync videos.
+                  ℹ️ You're viewing offline playlist data. Connect to YouTube to load fresh data or convert videos.
                 </p>
                 <AuthSection onAuthSuccess={handleAuthSuccess} />
               </div>
@@ -182,7 +182,7 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
                   <h2>📚 Playlist Management</h2>
-                  <p>Load your YouTube playlists and sync selected videos to MP3.</p>
+                  <p>Load your YouTube playlists and convert selected videos to MP3.</p>
                 </div>
                 {isAuthorized && (
                   <button 
@@ -201,7 +201,7 @@ function App() {
                 disabled={loading || !isAuthorized}
                 title={!isAuthorized ? 'Connect to YouTube first to load fresh playlist data' : ''}
               >
-                {loading ? 'Loading...' : '🔄 Load My Playlist Data'}
+                {loading ? 'Saving...' : '💾 Save Youtube Playlist in Playlist.json'}
               </button>
             </div>
 

@@ -4,8 +4,8 @@ export interface PlaylistVideo {
   videoUrl: string;
   videoTitle: string;
   videoDesc?: string; // Optional as specified
-  sync: boolean; // Initially false
-  mp3FilePath?: string; // Path to the MP3 file when synced
+  convertedToMP3: boolean; // Initially false
+  mp3FilePath?: string; // Path to the MP3 file when converted
 }
 
 export interface Playlist {

@@ -74,7 +74,8 @@ app.post('/api/playlists/load', async (req, res) => {
 app.get('/api/playlists', async (req, res) => {
   try {
     if (await fs.pathExists(PLAYLIST_FILE)) {
-      const playlists: PlaylistData = await fs.readJson(PLAYLIST_FILE);
+      const playlists = await fs.readJson(PLAYLIST_FILE);
+      
       res.json(playlists);
     } else {
       res.json([]);
@@ -111,7 +112,7 @@ app.put('/api/playlists/:playlistId', async (req, res) => {
   }
 });
 
-// Sync selected videos to MP3
+// Convert selected videos to MP3
 app.post('/api/playlists/:playlistId/sync', async (req, res) => {
   try {
     const { playlistId } = req.params;
@@ -127,40 +128,62 @@ app.post('/api/playlists/:playlistId/sync', async (req, res) => {
       return res.status(404).json({ error: 'Playlist not found' });
     }
     
-    const selectedVideos = playlist.playlistVideos.filter(v => v.selected && !v.sync);
+    const selectedVideos = playlist.playlistVideos.filter(v => v.selected && !v.convertedToMP3);
     
-    if (selectedVideos.length === 0) {
-      return res.json({ success: true, message: 'No videos selected for sync', synced: 0 });
-    }
+          if (selectedVideos.length === 0) {
+        return res.json({ success: true, message: 'No videos selected for conversion', synced: 0 });
+      }
     
-    console.log(`🎵 Starting sync of ${selectedVideos.length} videos from playlist: ${playlist.playlistName}`);
+    console.log(`🎵 Starting conversion of ${selectedVideos.length} videos from playlist: ${playlist.playlistName}`);
     
-    let syncedCount = 0;
+    let convertedCount = 0;
     const results = [];
     
     for (const video of selectedVideos) {
       try {
-        console.log(`🔄 Converting: ${video.videoTitle}`);
+        // Check if MP3 already exists
+        const sanitizedFileName = video.videoTitle.replace(/[<>:"/\\|?*┇]/g, '-').trim();
+        const expectedOutputPath = path.join(process.cwd(), 'playlists', playlist.playlistName, `${sanitizedFileName}.mp3`);
         
-        const outputPath = await convertYouTubeVideoToMp3(
-          video.videoId,
-          playlist.playlistName,
-          video.videoTitle
-        );
-        
-        // Mark as synced and store the MP3 file path
-        video.sync = true;
-        video.mp3FilePath = outputPath;
-        syncedCount++;
-        
-        results.push({
-          videoId: video.videoId,
-          title: video.videoTitle,
-          success: true,
-          outputPath
-        });
-        
-        console.log(`✅ Successfully converted: ${video.videoTitle}`);
+        if (await fs.pathExists(expectedOutputPath)) {
+          console.log(`🎵 MP3 already exists: ${video.videoTitle}`);
+          
+          // Mark as converted and store the MP3 file path
+          video.convertedToMP3 = true;
+          video.mp3FilePath = expectedOutputPath;
+          convertedCount++;
+          
+          results.push({
+            videoId: video.videoId,
+            title: video.videoTitle,
+            success: true,
+            outputPath: expectedOutputPath
+          });
+          
+          console.log(`✅ Already converted (skipped): ${video.videoTitle}`);
+        } else {
+          console.log(`🔄 Converting: ${video.videoTitle}`);
+          
+          const outputPath = await convertYouTubeVideoToMp3(
+            video.videoId,
+            playlist.playlistName,
+            video.videoTitle
+          );
+          
+          // Mark as converted and store the MP3 file path
+          video.convertedToMP3 = true;
+          video.mp3FilePath = outputPath;
+          convertedCount++;
+          
+          results.push({
+            videoId: video.videoId,
+            title: video.videoTitle,
+            success: true,
+            outputPath
+          });
+          
+          console.log(`✅ Successfully converted: ${video.videoTitle}`);
+        }
       } catch (error) {
         console.error(`❌ Failed to convert ${video.videoTitle}:`, error);
         results.push({
@@ -177,15 +200,15 @@ app.post('/api/playlists/:playlistId/sync', async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: `Synced ${syncedCount} out of ${selectedVideos.length} videos`,
-      synced: syncedCount,
+      message: `Converted ${convertedCount} out of ${selectedVideos.length} videos`,
+      synced: convertedCount,
       total: selectedVideos.length,
       results
     });
     
   } catch (error) {
-    console.error('Error syncing playlist:', error);
-    res.status(500).json({ error: 'Failed to sync playlist' });
+    console.error('Error converting playlist:', error);
+    res.status(500).json({ error: 'Failed to convert playlist' });
   }
 });
 
@@ -210,13 +233,13 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
       return res.status(404).json({ error: 'Playlist not found' });
     }
     
-    // Only upload selected videos that have been synced (MP3 exists)
-    const selectedVideos = playlist.playlistVideos.filter(v => v.selected && v.sync);
+    // Only upload selected videos that have been converted (MP3 exists)
+    const selectedVideos = playlist.playlistVideos.filter(v => v.selected && v.convertedToMP3);
     
     if (selectedVideos.length === 0) {
       return res.json({ 
         success: true, 
-        message: 'No synced videos selected for VLC upload', 
+        message: 'No converted videos selected for VLC upload', 
         uploaded: 0,
         total: 0,
         results: []

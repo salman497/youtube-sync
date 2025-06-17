@@ -117,11 +117,11 @@ const VideoList: React.FC<VideoListProps> = ({
   };
 
   const selectedCount = playlist.playlistVideos.filter(v => v.selected).length;
-  const syncedCount = playlist.playlistVideos.filter(v => v.sync).length;
-  const selectedSyncedCount = playlist.playlistVideos.filter(v => v.selected && v.sync).length;
+  const convertedCount = playlist.playlistVideos.filter(v => v.convertedToMP3).length;
+  const selectedConvertedCount = playlist.playlistVideos.filter(v => v.selected && v.convertedToMP3).length;
   const filteredSelectedCount = filteredVideos.filter(v => v.selected).length;
   const canSync = selectedCount > 0 && !loading && isAuthorized;
-  const canUploadVlc = selectedSyncedCount > 0 && !vlcLoading && !loading;
+  const canUploadVlc = selectedConvertedCount > 0 && !vlcLoading && !loading;
 
   // Update selectAll state when playlist or search changes
   React.useEffect(() => {
@@ -210,9 +210,9 @@ const VideoList: React.FC<VideoListProps> = ({
           className="btn btn-success"
           onClick={handleSync}
           // disabled={!canSync}
-          title={!isAuthorized ? 'Connect to YouTube to sync videos' : ''}
+          title={!isAuthorized ? 'Connect to YouTube to convert videos' : ''}
         >
-          {loading ? '🔄 Syncing...' : `🎶 Sync Selected (${selectedCount})`}
+          {loading ? '🔄 Converting...' : `🎵 Convert & Download video as mp3 (${selectedCount})`}
         </button>
       </div>
 
@@ -257,7 +257,7 @@ const VideoList: React.FC<VideoListProps> = ({
               opacity: canUploadVlc ? 1 : 0.6
             }}
           >
-            {vlcLoading ? '🔄 Uploading...' : `📤 Upload to VLC (${selectedSyncedCount})`}
+            {vlcLoading ? '🔄 Uploading...' : `📤 Upload to VLC (${selectedConvertedCount})`}
           </button>
         </div>
 
@@ -278,7 +278,7 @@ const VideoList: React.FC<VideoListProps> = ({
           {playlist.syncWithVlc && (
             <span style={{ color: '#28a745' }}>✅ Synced with VLC Mobile</span>
           )}
-          <div>Only synced MP3 files will be uploaded to VLC Mobile</div>
+          <div>Only converted MP3 files will be uploaded to VLC Mobile</div>
         </div>
       </div>
 
@@ -292,11 +292,11 @@ const VideoList: React.FC<VideoListProps> = ({
           <div className="stat-label">Selected</div>
         </div>
         <div className="stat-item">
-          <span className="stat-number">{syncedCount}</span>
-          <div className="stat-label">Synced</div>
+          <span className="stat-number">{convertedCount}</span>
+          <div className="stat-label">Converted</div>
         </div>
         <div className="stat-item">
-          <span className="stat-number">{selectedSyncedCount}</span>
+          <span className="stat-number">{selectedConvertedCount}</span>
           <div className="stat-label">Ready for VLC</div>
         </div>
       </div>
@@ -378,8 +378,8 @@ const VideoItem: React.FC<VideoItemProps> = ({ video, onToggle, disabled, search
       </div>
       
       <div className="video-status">
-        <span className={`status-${video.sync ? 'synced' : 'pending'}`}>
-          {video.sync ? '✅ Synced' : '⏳ Pending'}
+        <span className={`status-${video.convertedToMP3 ? 'converted' : 'pending'}`}>
+          {video.convertedToMP3 ? '✅ Converted' : '⏳ Pending'}
         </span>
       </div>
     </div>

@@ -25,15 +25,15 @@ const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
   const getPlaylistStats = (playlist: Playlist) => {
     const total = playlist.playlistVideos.length;
     const selected = playlist.playlistVideos.filter(v => v.selected).length;
-    const synced = playlist.playlistVideos.filter(v => v.sync).length;
+    const converted = playlist.playlistVideos.filter(v => v.convertedToMP3).length;
     
-    return { total, selected, synced };
+    return { total, selected, converted };
   };
 
   return (
     <div className="card">
       <h2>📋 Select Playlist</h2>
-      <p>Choose a playlist to view and sync its videos.</p>
+      <p>Choose a playlist to view and convert its videos.</p>
 
       <div className="form-group">
         <label htmlFor="playlistSelect" className="form-label">
@@ -50,7 +50,7 @@ const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
             const stats = getPlaylistStats(playlist);
             return (
               <option key={playlist.playlistId} value={playlist.playlistId}>
-                {playlist.playlistName} ({stats.total} videos, {stats.synced} synced)
+                {playlist.playlistName} ({stats.total} videos, {stats.converted} converted)
               </option>
             );
           })}
@@ -68,8 +68,8 @@ const PlaylistSelector: React.FC<PlaylistSelectorProps> = ({
             <div className="stat-label">Selected</div>
           </div>
           <div className="stat-item">
-            <span className="stat-number">{getPlaylistStats(selectedPlaylist).synced}</span>
-            <div className="stat-label">Synced</div>
+            <span className="stat-number">{getPlaylistStats(selectedPlaylist).converted}</span>
+            <div className="stat-label">Converted</div>
           </div>
         </div>
       )}
