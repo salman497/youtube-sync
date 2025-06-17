@@ -103,7 +103,7 @@ export class YouTubeService {
               videoUrl: `https://www.youtube.com/watch?v=${item.snippet?.resourceId?.videoId}`,
               videoTitle: item.snippet?.title || 'Unknown Video',
               videoDesc: item.snippet?.description || undefined,
-              sync: false,
+              convertedToMP3: false,
             };
             videos.push(video);
           }

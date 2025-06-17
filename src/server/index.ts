@@ -53,16 +53,62 @@ app.post('/api/playlists/load', async (req, res) => {
 
     const youtubeService = new YouTubeService(tokens);
     console.log('🎵 Loading playlists from YouTube...');
-    const playlists = await youtubeService.getUserPlaylists();
+    const newPlaylists = await youtubeService.getUserPlaylists();
     
-    // Save to playlist.json
-    await fs.writeJson(PLAYLIST_FILE, playlists, { spaces: 2 });
-    console.log(`✅ Saved ${playlists.length} playlists to playlist.json`);
+    let finalPlaylists = newPlaylists;
+    
+    // Check if playlist.json exists and merge existing data
+    if (await fs.pathExists(PLAYLIST_FILE)) {
+      const existingPlaylists: PlaylistData = await fs.readJson(PLAYLIST_FILE);
+      console.log('📋 Found existing playlist.json, merging data...');
+      
+      // Create a map of existing videos by playlist ID and video ID for quick lookup
+      const existingVideoMap = new Map<string, Map<string, any>>();
+      existingPlaylists.forEach(playlist => {
+        const playlistVideoMap = new Map();
+        playlist.playlistVideos.forEach(video => {
+          playlistVideoMap.set(video.videoId, video);
+        });
+        existingVideoMap.set(playlist.playlistId, playlistVideoMap);
+      });
+      
+      // Merge new playlists with existing data
+      finalPlaylists = newPlaylists.map(newPlaylist => {
+        const existingPlaylistVideos = existingVideoMap.get(newPlaylist.playlistId);
+        
+        if (existingPlaylistVideos) {
+          // Merge videos, preserving existing properties for matching video IDs
+          newPlaylist.playlistVideos = newPlaylist.playlistVideos.map(newVideo => {
+            const existingVideo = existingPlaylistVideos.get(newVideo.videoId);
+            
+            if (existingVideo) {
+              // Preserve important properties from existing video
+              return {
+                ...newVideo,
+                convertedToMP3: existingVideo.convertedToMP3 || false,
+                mp3FilePath: existingVideo.mp3FilePath || undefined,
+                selected: existingVideo.selected !== undefined ? existingVideo.selected : newVideo.selected
+              };
+            }
+            
+            return newVideo;
+          });
+        }
+        
+        return newPlaylist;
+      });
+      
+      console.log('🔄 Merged existing data with new playlists');
+    }
+    
+    // Save merged playlists to playlist.json
+    await fs.writeJson(PLAYLIST_FILE, finalPlaylists, { spaces: 2 });
+    console.log(`✅ Saved ${finalPlaylists.length} playlists to playlist.json`);
     
     res.json({ 
       success: true, 
-      message: `Loaded ${playlists.length} playlists`,
-      playlists 
+      message: `Loaded ${finalPlaylists.length} playlists`,
+      playlists: finalPlaylists 
     });
   } catch (error) {
     console.error('Error loading playlists:', error);
@@ -271,6 +317,7 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
           videoId: video.videoId,
           title: video.videoTitle
         });
+        video.syncWithVlc = true;
       } else {
         console.warn(`⚠️ MP3 file not found for ${video.videoTitle} (path: ${video.mp3FilePath}), skipping upload`);
       }
@@ -290,8 +337,8 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
     const results = await vlcService.uploadMultipleFiles(files, playlist.playlistName);
     const uploadedCount = results.filter(r => r.success).length;
     
-    // Mark playlist as synced with VLC
-    playlist.syncWithVlc = true;
+    playlist.syncWithVlc = playlist.playlistVideos.some(v => !v.selected) ?  playlist.syncWithVlc: true;
+
     await fs.writeJson(PLAYLIST_FILE, playlists, { spaces: 2 });
     
     const response: VlcUploadResponse = {

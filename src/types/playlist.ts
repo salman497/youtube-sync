@@ -6,6 +6,8 @@ export interface PlaylistVideo {
   videoDesc?: string; // Optional as specified
   convertedToMP3: boolean; // Initially false
   mp3FilePath?: string; // Path to the MP3 file when converted
+  syncWithVlc?: boolean;
+
 }
 
 export interface Playlist {
