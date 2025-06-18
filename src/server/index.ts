@@ -87,6 +87,7 @@ app.post('/api/playlists/load', async (req, res) => {
                 ...newVideo,
                 convertedToMP3: existingVideo.convertedToMP3 || false,
                 mp3FilePath: existingVideo.mp3FilePath || undefined,
+                syncWithVlc: existingVideo.syncWithVlc || undefined,
                 selected: existingVideo.selected !== undefined ? existingVideo.selected : newVideo.selected
               };
             }
@@ -337,7 +338,18 @@ app.post('/api/playlists/:playlistId/upload-vlc', async (req, res) => {
     const results = await vlcService.uploadMultipleFiles(files, playlist.playlistName);
     const uploadedCount = results.filter(r => r.success).length;
     
-    playlist.syncWithVlc = playlist.playlistVideos.some(v => !v.selected) ?  playlist.syncWithVlc: true;
+    // Update individual video sync status based on upload results
+    for (const result of results) {
+      const video = playlist.playlistVideos.find(v => v.videoId === result.videoId);
+      if (video) {
+        video.syncWithVlc = result.success;
+      }
+    }
+    
+    // Update playlist sync status - only mark as fully synced if all selected videos are synced
+    const allSelectedVideos = playlist.playlistVideos.filter(v => v.selected);
+    const allSelectedSynced = allSelectedVideos.length > 0 && allSelectedVideos.every(v => v.syncWithVlc);
+    playlist.syncWithVlc = allSelectedSynced;
 
     await fs.writeJson(PLAYLIST_FILE, playlists, { spaces: 2 });
     

@@ -22,6 +22,11 @@ const VideoList: React.FC<VideoListProps> = ({
   const [vlcLoading, setVlcLoading] = useState(false);
   const [vlcMessage, setVlcMessage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+    currentVideo?: string;
+  } | null>(null);
 
   // Filter videos based on search term
   const filteredVideos = playlist.playlistVideos.filter(video => {
@@ -92,19 +97,41 @@ const VideoList: React.FC<VideoListProps> = ({
 
     setVlcLoading(true);
     setVlcMessage(null);
+    setUploadProgress({ current: 0, total: selectedConvertedCount });
 
     try {
       const response = await apiService.uploadToVlc(playlist.playlistId, vlcIp);
       
       if (response.success) {
-        setVlcMessage(`✅ Successfully uploaded ${response.uploaded} files to VLC Mobile`);
+        setVlcMessage(`✅ Successfully uploaded ${response.uploaded} of ${response.total} files to VLC Mobile`);
         
-        // Update playlist to mark as synced with VLC
+        // Update individual video sync status based on server response
+        const updatedVideos = playlist.playlistVideos.map(video => {
+          const uploadResult = response.results.find(r => r.videoId === video.videoId);
+          if (uploadResult) {
+            return { ...video, syncWithVlc: uploadResult.success };
+          }
+          return video;
+        });
+
+        // Update playlist sync status
+        const selectedVideos = updatedVideos.filter(v => v.selected);
+        const allSelectedSynced = selectedVideos.length > 0 && 
+          selectedVideos.filter(v => v.convertedToMP3).every(v => v.syncWithVlc);
+        
         const updatedPlaylist = {
           ...playlist,
-          syncWithVlc: true,
+          playlistVideos: updatedVideos,
+          syncWithVlc: allSelectedSynced,
         };
         onPlaylistUpdate(updatedPlaylist);
+        
+        // Show detailed results if there were failures
+        if (response.uploaded < response.total) {
+          const failedUploads = response.results.filter(r => !r.success);
+          const failedTitles = failedUploads.map(r => r.title).join(', ');
+          setVlcMessage(`⚠️ Uploaded ${response.uploaded}/${response.total} files. Failed: ${failedTitles}`);
+        }
       } else {
         setVlcMessage(`❌ Upload failed: ${response.message}`);
       }
@@ -113,6 +140,7 @@ const VideoList: React.FC<VideoListProps> = ({
       setVlcMessage(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setVlcLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -257,28 +285,66 @@ const VideoList: React.FC<VideoListProps> = ({
               opacity: canUploadVlc ? 1 : 0.6
             }}
           >
-            {vlcLoading ? '🔄 Uploading...' : `📤 Upload to VLC (${selectedConvertedCount})`}
+            {vlcLoading ? (
+              uploadProgress ? 
+                `🔄 Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 
+                '🔄 Uploading...'
+            ) : `📤 Upload to VLC (${selectedConvertedCount})`}
           </button>
         </div>
+
+        {/* Progress indicator during upload */}
+        {uploadProgress && (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: '4px',
+            fontSize: '14px',
+            backgroundColor: '#cce5ff',
+            color: '#0066cc',
+            border: '1px solid #99ccff',
+            marginBottom: '8px'
+          }}>
+            🔄 Uploading {uploadProgress.current} of {uploadProgress.total} files...
+            {uploadProgress.currentVideo && (
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                Current: {uploadProgress.currentVideo}
+              </div>
+            )}
+          </div>
+        )}
 
         {vlcMessage && (
           <div style={{
             padding: '8px 12px',
             borderRadius: '4px',
             fontSize: '14px',
-            backgroundColor: vlcMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
-            color: vlcMessage.startsWith('✅') ? '#155724' : '#721c24',
-            border: `1px solid ${vlcMessage.startsWith('✅') ? '#c3e6cb' : '#f5c6cb'}`
+            backgroundColor: vlcMessage.startsWith('✅') ? '#d4edda' : 
+                           vlcMessage.startsWith('⚠️') ? '#fff3cd' : '#f8d7da',
+            color: vlcMessage.startsWith('✅') ? '#155724' : 
+                   vlcMessage.startsWith('⚠️') ? '#856404' : '#721c24',
+            border: `1px solid ${vlcMessage.startsWith('✅') ? '#c3e6cb' : 
+                                vlcMessage.startsWith('⚠️') ? '#ffeaa7' : '#f5c6cb'}`
           }}>
             {vlcMessage}
           </div>
         )}
 
         <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-          {playlist.syncWithVlc && (
-            <span style={{ color: '#28a745' }}>✅ Synced with VLC Mobile</span>
-          )}
-          <div>Only converted MP3 files will be uploaded to VLC Mobile</div>
+        <div>Only converted MP3 files will be uploaded to VLC Mobile</div>
+        
+        {/* Show sync progress for individual videos */}
+        {selectedConvertedCount > 0 && (
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            {(() => {
+              const syncedCount = playlist.playlistVideos.filter(v => v.selected && v.convertedToMP3 && v.syncWithVlc).length;
+              return syncedCount > 0 ? (
+                <span style={{ color: '#28a745' }}>
+                  📱 {syncedCount} of {selectedConvertedCount} videos synced with VLC
+                </span>
+              ) : null;
+            })()}
+          </div>
+        )}
         </div>
       </div>
 
@@ -298,6 +364,10 @@ const VideoList: React.FC<VideoListProps> = ({
         <div className="stat-item">
           <span className="stat-number">{selectedConvertedCount}</span>
           <div className="stat-label">Ready for VLC</div>
+        </div>
+        <div className="stat-item">
+          <span className="stat-number">{playlist.playlistVideos.filter(v => v.syncWithVlc).length}</span>
+          <div className="stat-label">VLC Synced</div>
         </div>
       </div>
 
@@ -381,6 +451,18 @@ const VideoItem: React.FC<VideoItemProps> = ({ video, onToggle, disabled, search
         <span className={`status-${video.convertedToMP3 ? 'converted' : 'pending'}`}>
           {video.convertedToMP3 ? '✅ Converted' : '⏳ Pending'}
         </span>
+        {video.convertedToMP3 && (
+          <span 
+            className={`status-${video.syncWithVlc ? 'synced' : 'not-synced'}`}
+            style={{ 
+              marginLeft: '8px',
+              fontSize: '12px',
+              color: video.syncWithVlc ? '#28a745' : '#6c757d'
+            }}
+          >
+            {video.syncWithVlc ? '📱 VLC Synced' : '📱 Not Synced'}
+          </span>
+        )}
       </div>
     </div>
   );
