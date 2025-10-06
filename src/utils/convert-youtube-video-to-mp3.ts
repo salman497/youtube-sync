@@ -1,14 +1,7 @@
-import ytdl from '@distube/ytdl-core';
-import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
+import YTDlpWrap from 'yt-dlp-wrap';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { Readable } from 'stream';
-
-// Set ffmpeg path
-if (ffmpegStatic) {
-  ffmpeg.setFfmpegPath(ffmpegStatic);
-}
+import ffmpegStatic from 'ffmpeg-static';
 
 /**
  * Interface for YouTube to MP3 conversion parameters
@@ -17,6 +10,30 @@ export interface ConvertParams {
   videoId: string;
   playlistName: string;
   fileName: string;
+}
+
+// Initialize yt-dlp wrapper with binary path
+let ytDlpWrap: YTDlpWrap;
+let ytDlpInitialized = false;
+
+async function initializeYtDlp(): Promise<YTDlpWrap> {
+  if (ytDlpInitialized && ytDlpWrap) {
+    return ytDlpWrap;
+  }
+
+  const ytDlpPath = path.join(process.cwd(), 'bin', 'yt-dlp');
+
+  // Check if yt-dlp binary exists
+  if (!await fs.pathExists(ytDlpPath)) {
+    console.log('📥 Downloading yt-dlp binary...');
+    await fs.ensureDir(path.join(process.cwd(), 'bin'));
+    await YTDlpWrap.downloadFromGithub(ytDlpPath);
+    console.log('✅ yt-dlp binary downloaded successfully');
+  }
+
+  ytDlpWrap = new YTDlpWrap(ytDlpPath);
+  ytDlpInitialized = true;
+  return ytDlpWrap;
 }
 
 /**
@@ -31,71 +48,55 @@ export async function convertYouTubeVideoToMp3(
   playlistName: string,
   fileName: string
 ): Promise<string> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Create the directory structure: <root>/<playlistname>/
-      const rootDir = process.cwd();
-      const playlistDir = path.join(rootDir, 'playlists', playlistName);
-      
-      // Ensure the playlist directory exists
-      await fs.ensureDir(playlistDir);
-      
-      // Sanitize filename to remove invalid characters
-      const sanitizedFileName = fileName.replace(/[<>:"/\\|?*┇]/g, '-').trim();
-      const outputPath = path.join(playlistDir, `${sanitizedFileName}.mp3`);
-      
-      // Create YouTube URL from video ID
-      const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      
-      console.log(`🎵 Starting download: ${youtubeUrl}`);
-      console.log(`📁 Output directory: ${playlistDir}`);
-      console.log(`📄 Filename: ${sanitizedFileName}.mp3`);
-      
-      // Get video info to find audio stream
-      const info = await ytdl.getInfo(youtubeUrl);
-      console.log(`📺 Video title: ${info.videoDetails.title}`);
-      
-      // Create audio stream
-      const audioStream = ytdl(youtubeUrl, {
-        filter: 'audioonly',
-        quality: 'highestaudio',
-      });
-      
-      // Convert to MP3 using ffmpeg
-      ffmpeg(audioStream)
-        .audioBitrate(128)
-        .audioCodec('libmp3lame')
-        .format('mp3')
-        .on('start', (commandLine) => {
-          console.log('🔄 FFmpeg started with command:', commandLine);
-        })
-        .on('progress', (progress) => {
-          // FFmpeg progress can include: frames, currentFps, currentKbps, targetSize, timemark, percent
-          if (progress.percent && progress.percent > 0) {
-            console.log(`⏳ Processing: ${Math.round(progress.percent)}% done`);
-          } else if (progress.timemark) {
-            console.log(`⏳ Processing: ${progress.timemark} processed`);
-          } else if (progress.targetSize) {
-            console.log(`⏳ Processing: ${Math.round(progress.targetSize)}KB processed`);
-          } else {
-            console.log(`⏳ Processing audio conversion...`);
-          }
-        })
-        .on('end', () => {
-          console.log(`✅ Successfully downloaded: ${outputPath}`);
-          resolve(outputPath);
-        })
-        .on('error', (err) => {
-          console.error('❌ FFmpeg error:', err);
-          reject(err);
-        })
-        .save(outputPath);
-        
-    } catch (error) {
-      console.error('❌ Error converting YouTube video to MP3:', error);
-      reject(new Error(`Failed to convert video ${videoId}: ${error}`));
+  try {
+    // Create the directory structure: <root>/<playlistname>/
+    const rootDir = process.cwd();
+    const playlistDir = path.join(rootDir, 'playlists', playlistName);
+
+    // Ensure the playlist directory exists
+    await fs.ensureDir(playlistDir);
+
+    // Sanitize filename to remove invalid characters
+    const sanitizedFileName = fileName.replace(/[<>:"/\\|?*┇]/g, '-').trim();
+    const outputPath = path.join(playlistDir, `${sanitizedFileName}.mp3`);
+
+    // Create YouTube URL from video ID
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    console.log(`🎵 Starting download: ${youtubeUrl}`);
+    console.log(`📁 Output directory: ${playlistDir}`);
+    console.log(`📄 Filename: ${sanitizedFileName}.mp3`);
+
+    // Initialize yt-dlp (downloads binary if needed)
+    const ytDlp = await initializeYtDlp();
+
+    // Get ffmpeg path from ffmpeg-static
+    const ffmpegPath = ffmpegStatic ? path.dirname(ffmpegStatic) : '';
+
+    // Download with yt-dlp (more reliable than ytdl-core)
+    const args = [
+      youtubeUrl,
+      '-x', // Extract audio
+      '--audio-format', 'mp3',
+      '--audio-quality', '0', // Best quality
+      '-o', outputPath.replace('.mp3', '.%(ext)s'), // Output template
+      '--no-playlist', // Don't download playlists
+    ];
+
+    // Add ffmpeg location if available
+    if (ffmpegPath) {
+      args.push('--ffmpeg-location', ffmpegPath);
     }
-  });
+
+    await ytDlp.execPromise(args);
+
+    console.log(`✅ Successfully downloaded: ${outputPath}`);
+    return outputPath;
+
+  } catch (error) {
+    console.error('❌ Error converting YouTube video to MP3:', error);
+    throw new Error(`Failed to convert video ${videoId}: ${error}`);
+  }
 }
 
 /**

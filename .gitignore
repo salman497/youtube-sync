@@ -118,6 +118,8 @@ Thumbs.db
 youtube-credentials.json
 youtube-token.json
 playlists/
+bin/
+*-player-script.js
 
 # But ensure we don't ignore important project directories
 !src/ 
